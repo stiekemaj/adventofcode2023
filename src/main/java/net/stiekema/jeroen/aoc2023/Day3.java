@@ -8,9 +8,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -21,7 +25,7 @@ public class Day3 {
 
     public static void main(String[] args) throws URISyntaxException, IOException {
         System.out.println("part 1 test: " + calculatePart1Test());
-        System.out.println("part 1: " + calculatePart1());
+        System.out.println("part 1 537832?: " + calculatePart1());
         System.out.println("part 2 test: " + calculatePart2Test());
         System.out.println("part 2: " + calculatePart2());
     }
@@ -95,17 +99,28 @@ public class Day3 {
         }
 
         public List<Integer> findGearRatios() {
-            List<Integer> result = new ArrayList<>();
-            List<Gear> possibleGears = findPossibleGears();
-            for (int lineNr = 0; lineNr < representation.length; lineNr++) {
-                String line = new String(representation[lineNr]);
+            Map<Coordinate, Gear> possibleGears = new HashMap<>();
+            for (int y = 0; y < representation.length; y++) {
+                String line = new String(representation[y]);
                 Pattern pattern = Pattern.compile("[0-9]+");
                 Matcher matcher = pattern.matcher(line);
                 while (matcher.find()) {
-
+                    String match = matcher.group();
+                    int startIndex = matcher.start();
+                    int endIndex = matcher.end() - 1;
+                    Set<Coordinate> foundGears = findAdjacentToSymbolCoordinates(new Coordinate(startIndex, y), new Coordinate(endIndex, y), List.of('*'));
+                    foundGears.forEach(t -> {
+                                Gear gear = possibleGears.getOrDefault(t, new Gear(t));
+                                gear.addPartNr(Integer.parseInt(match));
+                                possibleGears.put(t, gear);
+                            });
                 }
             }
-            return result;
+
+            return possibleGears.values().stream()
+                    .filter(Gear::isValidGear)
+                    .map(Gear::getGearRatio)
+                    .toList();
         }
 
         private List<Integer> findEnginePartNrs(String line, int lineNr) {
@@ -116,44 +131,32 @@ public class Day3 {
                 String match = matcher.group();
                 int startIndex = matcher.start();
                 int endIndex = matcher.end() - 1;
-                if (isAdjacentToSymbol(new Coordinate(startIndex, lineNr), new Coordinate(endIndex, lineNr))) {
+                if (!findAdjacentToSymbolCoordinates(new Coordinate(startIndex, lineNr), new Coordinate(endIndex, lineNr), SYMBOLS).isEmpty()) {
                     result.add(Integer.parseInt(match));
                 }
             }
             return result;
         }
 
-        private List<Gear> findPossibleGears() {
-            List<Gear> result = new ArrayList<>();
-            for (int y = 0; y < representation.length; y++) {
-                for (int x = 0; x < representation[y].length; x++) {
-                    if (representation[y][x] == '*') {
-                        result.add(new Gear(new Coordinate(x, y)));
-                    }
-                }
+        private Set<Coordinate> findAdjacentToSymbolCoordinates(Coordinate start, Coordinate end, List<Character> symbols) {
+            Set<Coordinate> result = new HashSet<>();
+            for (int x = start.x; x <= end.x; x++) {
+                result.addAll(findAdjacentToSymbolCoordinates(new Coordinate(x, start.y), symbols));
             }
             return result;
         }
 
-        private boolean isAdjacentToSymbol(Coordinate start, Coordinate end) {
-            for (int x = start.x; x <= end.x; x++) {
-                if (isAdjacentToSymbol(new Coordinate(x, start.y))) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private boolean isAdjacentToSymbol(Coordinate coordinate) {
+        private Set<Coordinate> findAdjacentToSymbolCoordinates(Coordinate coordinate, List<Character> symbols) {
+            Set<Coordinate> result = new HashSet<>();
             for (int x = coordinate.x - 1; x <= coordinate.x + 1; x++) {
                 for (int y = coordinate.y - 1; y <= coordinate.y + 1; y++) {
                     char character = representation[y][x];
-                    if (SYMBOLS.contains(character)) {
-                        return true;
+                    if (symbols.contains(character)) {
+                        result.add(new Coordinate(x, y));
                     }
                 }
             }
-            return false;
+            return result;
         }
 
         private static class Builder {
@@ -219,7 +222,22 @@ public class Day3 {
                 throw new IllegalStateException("not a valid gear");
             }
 
-            return partNumbers.get(0) & partNumbers.get(1);
+            return partNumbers.get(0) * partNumbers.get(1);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Gear gear = (Gear) o;
+            return Objects.equals(coordinate, gear.coordinate);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(coordinate);
         }
     }
+
+
 }
