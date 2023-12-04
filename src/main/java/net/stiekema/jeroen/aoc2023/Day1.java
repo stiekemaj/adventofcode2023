@@ -58,7 +58,7 @@ public class Day1 {
         return getLines(resource)
                 .map(calibrationCalculator)
                 .reduce(Integer::sum)
-                .orElseThrow();
+                .orElse(0);
     }
 
     private static int calculateCalibrationValuePart1(String line) {
