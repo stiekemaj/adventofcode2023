@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -16,9 +17,9 @@ import java.util.stream.Stream;
 
 public class Day5 {
     public static void main(String[] args) throws URISyntaxException, IOException {
-//        System.out.println("part 1 test: " + calculatePart1Test());
-//        System.out.println("part 1: " + calculatePart1());
-//        System.out.println("part 2 test: " + calculatePart2Test());
+        System.out.println("part 1 test: " + calculatePart1Test());
+        System.out.println("part 1: " + calculatePart1());
+        System.out.println("part 2 test: " + calculatePart2Test());
         System.out.println("part 2: " + calculatePart2());
     }
 
@@ -42,48 +43,54 @@ public class Day5 {
         return calculate(resource, seedResolverPart2());
     }
 
-    private static long calculate(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
+    private static long calculate(URL resource, Function<String, List<SeedEntry>> seedResolver) throws URISyntaxException, IOException {
         return calculateLowestLocationNr(resource, seedResolver);
     }
 
-    private static Long calculateLowestLocationNr(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
+    private static Long calculateLowestLocationNr(URL resource, Function<String, List<SeedEntry>> seedResolver) throws URISyntaxException, IOException {
         Almanac almanac = parseAlmanac(resource, seedResolver);
 
-        return almanac.seeds.stream()
-                .map(t -> almanac.seedToSoilMap.getDestination(t))
-                .map(t -> almanac.soilToFertilizerMap.getDestination(t))
-                .map(t -> almanac.fertilizerToWaterMap.getDestination(t))
-                .map(t -> almanac.waterToLightMap.getDestination(t))
-                .map(t -> almanac.lightToTemperatureMap.getDestination(t))
-                .map(t -> almanac.temperatureToHumidityMap.getDestination(t))
-                .map(t -> almanac.humidityToLocationMap.getDestination(t))
-                .min(Long::compare)
-                .orElseThrow();
+        long lowestLocationNr = Long.MAX_VALUE;
+        for (SeedEntry seedEntry : almanac.seeds) {
+            for (long seedNr = seedEntry.source; seedNr < seedEntry.source + seedEntry.length; seedNr++) {
+                long calculatedLocationNr = Optional.of(seedNr)
+                        .map(t -> almanac.seedToSoilMap.getDestination(t))
+                        .map(t -> almanac.soilToFertilizerMap.getDestination(t))
+                        .map(t -> almanac.fertilizerToWaterMap.getDestination(t))
+                        .map(t -> almanac.waterToLightMap.getDestination(t))
+                        .map(t -> almanac.lightToTemperatureMap.getDestination(t))
+                        .map(t -> almanac.temperatureToHumidityMap.getDestination(t))
+                        .map(t -> almanac.humidityToLocationMap.getDestination(t))
+                        .orElseThrow();
+                lowestLocationNr = Math.min(lowestLocationNr, calculatedLocationNr);
+            }
+        }
+
+        return lowestLocationNr;
     }
 
-    private static Function<String, List<Long>> seedResolverPart1() {
+    private static Function<String, List<SeedEntry>> seedResolverPart1() {
         return line -> Arrays.stream(line.substring(line.indexOf(":") + 1).trim().split(" "))
                 .map(String::trim)
                 .map(Long::parseLong)
+                .map(t -> new SeedEntry(t, 1))
                 .collect(Collectors.toList());
     }
 
-    private static Function<String, List<Long>> seedResolverPart2() {
+    private static Function<String, List<SeedEntry>> seedResolverPart2() {
         return line -> {
-            List<Long> result = new ArrayList<>();
+            List<SeedEntry> result = new ArrayList<>();
             String[] seedValues = line.substring(line.indexOf(":") + 1).trim().split(" ");
             for (int i = 1; i < seedValues.length; i = i + 2) {
                 long start = Long.parseLong(seedValues[i - 1]);
                 long length = Long.parseLong(seedValues[i]);
-                for (long j = start; j < start + length; j++) {
-                    result.add(j);
-                }
+                result.add(new SeedEntry(start, length));
             }
             return result;
         };
     }
 
-    private static Almanac parseAlmanac(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
+    private static Almanac parseAlmanac(URL resource, Function<String, List<SeedEntry>> seedResolver) throws URISyntaxException, IOException {
         Almanac almanac = new Almanac();
         AtomicReference<AlmanacMap> almanacMap = new AtomicReference<>();
         getLines(resource)
@@ -129,7 +136,7 @@ public class Day5 {
     }
 
     private static class Almanac {
-        private List<Long> seeds = new ArrayList<>();
+        private List<SeedEntry> seeds = new ArrayList<>();
         private AlmanacMap seedToSoilMap;
         private AlmanacMap soilToFertilizerMap;
         private AlmanacMap fertilizerToWaterMap;
