@@ -52,6 +52,7 @@ public class Day5 {
 
         long lowestLocationNr = Long.MAX_VALUE;
         for (SeedEntry seedEntry : almanac.seeds) {
+            System.out.println("calculating lowest location or for seed " + seedEntry);
             for (long seedNr = seedEntry.source; seedNr < seedEntry.source + seedEntry.length; seedNr++) {
                 long calculatedLocationNr = Optional.of(seedNr)
                         .map(t -> almanac.seedToSoilMap.getDestination(t))
@@ -64,6 +65,7 @@ public class Day5 {
                         .orElseThrow();
                 lowestLocationNr = Math.min(lowestLocationNr, calculatedLocationNr);
             }
+            System.out.println("lowest locationNr: " +lowestLocationNr);
         }
 
         return lowestLocationNr;
