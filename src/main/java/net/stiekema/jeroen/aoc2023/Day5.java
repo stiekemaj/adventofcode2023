@@ -9,30 +9,45 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Day5 {
     public static void main(String[] args) throws URISyntaxException, IOException {
-        System.out.println("part 1 test: " + calculatePart1Test());
-        System.out.println("part 1: " + calculatePart1());
+//        System.out.println("part 1 test: " + calculatePart1Test());
+//        System.out.println("part 1: " + calculatePart1());
+//        System.out.println("part 2 test: " + calculatePart2Test());
+        System.out.println("part 2: " + calculatePart2());
     }
 
     private static long calculatePart1Test() throws URISyntaxException, IOException {
         URL resource = Day3.class.getResource("/day5-test.txt");
-        return calculatePart1(resource);
+        return calculate(resource, seedResolverPart1());
     }
 
     private static long calculatePart1() throws URISyntaxException, IOException {
         URL resource = Day3.class.getResource("/day5.txt");
-        return calculatePart1(resource);
+        return calculate(resource, seedResolverPart1());
     }
 
-    private static long calculatePart1(URL resource) throws URISyntaxException, IOException {
-        Almanac almanac = parseAlmanac(resource);
+    private static long calculatePart2Test() throws URISyntaxException, IOException {
+        URL resource = Day3.class.getResource("/day5-test.txt");
+        return calculate(resource, seedResolverPart2());
+    }
+
+    private static long calculatePart2() throws URISyntaxException, IOException {
+        URL resource = Day3.class.getResource("/day5.txt");
+        return calculate(resource, seedResolverPart2());
+    }
+
+    private static long calculate(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
+        return calculateLowestLocationNr(resource, seedResolver);
+    }
+
+    private static Long calculateLowestLocationNr(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
+        Almanac almanac = parseAlmanac(resource, seedResolver);
 
         return almanac.seeds.stream()
                 .map(t -> almanac.seedToSoilMap.getDestination(t))
@@ -46,16 +61,35 @@ public class Day5 {
                 .orElseThrow();
     }
 
-    private static Almanac parseAlmanac(URL resource) throws URISyntaxException, IOException {
+    private static Function<String, List<Long>> seedResolverPart1() {
+        return line -> Arrays.stream(line.substring(line.indexOf(":") + 1).trim().split(" "))
+                .map(String::trim)
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
+    }
+
+    private static Function<String, List<Long>> seedResolverPart2() {
+        return line -> {
+            List<Long> result = new ArrayList<>();
+            String[] seedValues = line.substring(line.indexOf(":") + 1).trim().split(" ");
+            for (int i = 1; i < seedValues.length; i = i + 2) {
+                long start = Long.parseLong(seedValues[i - 1]);
+                long length = Long.parseLong(seedValues[i]);
+                for (long j = start; j < start + length; j++) {
+                    result.add(j);
+                }
+            }
+            return result;
+        };
+    }
+
+    private static Almanac parseAlmanac(URL resource, Function<String, List<Long>> seedResolver) throws URISyntaxException, IOException {
         Almanac almanac = new Almanac();
         AtomicReference<AlmanacMap> almanacMap = new AtomicReference<>();
         getLines(resource)
                 .forEach(line -> {
                     if (line.startsWith("seeds:")) {
-                        almanac.seeds = Arrays.stream(line.split(":")[1].trim().split(" "))
-                                .map(String::trim)
-                                .map(Long::parseLong)
-                                .collect(Collectors.toList());
+                        almanac.seeds = seedResolver.apply(line);
                     } else if (line.startsWith("seed-to-soil map:")) {
                         almanacMap.set(new AlmanacMap());
                     } else if (line.startsWith("soil-to-fertilizer map:")) {
@@ -106,7 +140,7 @@ public class Day5 {
     }
 
     private static class AlmanacMap {
-        private final SortedSet<AlmanacMapEntry> almanacMapEntries = new TreeSet<>();
+        private final List<AlmanacMapEntry> almanacMapEntries = new ArrayList<>();
 
         public void addEntry(AlmanacMapEntry almanacMapEntry) {
             almanacMapEntries.add(almanacMapEntry);
@@ -114,7 +148,6 @@ public class Day5 {
 
         public long getDestination(long source) {
             return almanacMapEntries.stream()
-                    .takeWhile(t -> t.source <= source)
                     .filter(t -> t.hasRecord(source))
                     .map(t -> t.getValue(source))
                     .findFirst()
@@ -122,7 +155,9 @@ public class Day5 {
         }
     }
 
-    private record AlmanacMapEntry(long source, long destination, long length) implements Comparable<AlmanacMapEntry> {
+    private record SeedEntry(long source, long length) {}
+
+    private record AlmanacMapEntry(long source, long destination, long length) {
         public  boolean hasRecord(long id) {
             return id >= source && id <= source + length;
         }
@@ -132,11 +167,6 @@ public class Day5 {
                 throw new RuntimeException("id not found in map");
             }
             return destination + (id - source);
-        }
-
-        @Override
-        public int compareTo(AlmanacMapEntry o) {
-            return Long.compare(this.source, o.source);
         }
     }
 }
