@@ -17,10 +17,10 @@ import java.util.stream.Stream;
 
 public class Day5 {
     public static void main(String[] args) throws URISyntaxException, IOException {
-        System.out.println("part 1 test: " + calculatePart1Test());
-        System.out.println("part 1: " + calculatePart1());
-        System.out.println("part 2 test: " + calculatePart2Test());
-        System.out.println("part 2: " + calculatePart2());
+        System.out.println("part 1 test 35?: " + calculatePart1Test());
+        System.out.println("part 1 318728750?: " + calculatePart1());
+        System.out.println("part 2 test 46?: " + calculatePart2Test());
+        System.out.println("part 2 37384986?: " + calculatePart2());
     }
 
     private static long calculatePart1Test() throws URISyntaxException, IOException {
