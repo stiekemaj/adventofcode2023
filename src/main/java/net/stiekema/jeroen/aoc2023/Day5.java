@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -104,10 +103,6 @@ public class Day5 {
         private AlmanacMap lightToTemperatureMap;
         private AlmanacMap temperatureToHumidityMap;
         private AlmanacMap humidityToLocationMap;
-
-        public void setSeeds(List<Long> seeds) {
-            this.seeds = seeds;
-        }
     }
 
     private static class AlmanacMap {
