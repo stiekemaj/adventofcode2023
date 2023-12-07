@@ -10,6 +10,9 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -63,16 +66,15 @@ public class Day7 {
 
     private static long calculate(URL resource, Comparator<Hand> comparator) throws URISyntaxException, IOException {
         long time = System.currentTimeMillis();
-        long result = 0;
+
         List<Hand> hands = getLines(resource)
                 .map(Day7::parseHand)
                 .sorted(comparator)
                 .toList();
+        long result = IntStream.rangeClosed(1, hands.size())
+                .mapToLong(i -> hands.get(i - 1).bid() * i)
+                .sum();
 
-        for (int i = 1; i <= hands.size(); i++) {
-            Hand hand = hands.get(i-1);
-            result += hand.bid() * i;
-        }
         System.out.println("time spent: " + (System.currentTimeMillis() - time) + "ms");
         return result;
     }
