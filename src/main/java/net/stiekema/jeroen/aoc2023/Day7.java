@@ -35,10 +35,10 @@ public class Day7 {
     }
 
     public static void main(String[] args) throws URISyntaxException, IOException {
-        System.out.println("Part 1 test: " + calculatePart1Test());
-        System.out.println("Part 1: " + calculatePart1());
-        System.out.println("Part 2 test: " + calculatePart2Test());
-        System.out.println("Part 2: " + calculatePart2());
+        System.out.println("Part 1 test: " + calculatePart1Test() + "\n");
+        System.out.println("Part 1: " + calculatePart1() + "\n");
+        System.out.println("Part 2 test: " + calculatePart2Test() + "\n");
+        System.out.println("Part 2: " + calculatePart2() + "\n");
     }
 
     private static long calculatePart1Test() throws URISyntaxException, IOException {
@@ -62,15 +62,18 @@ public class Day7 {
     }
 
     private static long calculate(URL resource, Comparator<Hand> comparator) throws URISyntaxException, IOException {
+        long time = System.currentTimeMillis();
         long result = 0;
         List<Hand> hands = getLines(resource)
                 .map(Day7::parseHand)
                 .sorted(comparator)
                 .toList();
+
         for (int i = 1; i <= hands.size(); i++) {
             Hand hand = hands.get(i-1);
             result += hand.bid() * i;
         }
+        System.out.println("time spent: " + (System.currentTimeMillis() - time) + "ms");
         return result;
     }
 
