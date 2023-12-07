@@ -6,6 +6,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,6 +15,25 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Day7 {
+
+    private static final List<Character> CARD_RANKING_ORDER = List.of('2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A');
+    private static final List<Character> CARD_WITH_JOKER_RANKING_ORDER = List.of('J', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A');
+    private enum HandType {
+        HIGH(1, 1, 1, 1, 1),
+        ONE_PAIR(2, 1, 1, 1),
+        TWO_PAIR(2, 2, 1),
+        THREE(3, 1, 1),
+        FULL_HOUSE(3, 2),
+        FOUR(4, 1),
+        FIVE(5);
+
+        private final List<Integer> amounts;
+
+        HandType(Integer ... amounts) {
+            this.amounts = Arrays.asList(amounts);
+        }
+    }
+
     public static void main(String[] args) throws URISyntaxException, IOException {
         System.out.println("Part 1 test: " + calculatePart1Test());
         System.out.println("Part 1: " + calculatePart1());
@@ -56,9 +76,8 @@ public class Day7 {
 
     private static Hand parseHand(String hand) {
         String[] split = hand.split("\\s+");
-        List<Card> cards = split[0].trim().chars()
+        List<Character> cards = split[0].trim().chars()
                 .mapToObj(t -> (char) t)
-                .map(Card::new)
                 .toList();
         return new Hand(cards, Long.parseLong(split[1].trim()));
     }
@@ -69,21 +88,21 @@ public class Day7 {
 
     private static Comparator<Hand> getPart1Comparator() {
         return (o1, o2) -> {
-            int compare = Integer.compare(o1.getHandType(), o2.getHandType());
+            int compare = Integer.compare(o1.getHandType().ordinal(), o2.getHandType().ordinal());
             if (compare != 0) return compare;
-            return getHandStrengthComparator(Comparator.comparingInt(Card::getStrength)).compare(o1, o2);
+            return getHandStrengthComparator(Comparator.comparingInt(CARD_RANKING_ORDER::indexOf)).compare(o1, o2);
         };
     }
 
     private static Comparator<Hand> getPart2Comparator() {
         return (o1, o2) -> {
-            int compare = Integer.compare(o1.getHandTypeWithJoker(), o2.getHandTypeWithJoker());
+            int compare = Integer.compare(o1.getHandTypeWithJoker().ordinal(), o2.getHandTypeWithJoker().ordinal());
             if (compare != 0) return compare;
-            return getHandStrengthComparator(Comparator.comparingInt(Card::getStrengthWithJoker)).compare(o1, o2);
+            return getHandStrengthComparator(Comparator.comparingInt(CARD_WITH_JOKER_RANKING_ORDER::indexOf)).compare(o1, o2);
         };
     }
 
-    private static Comparator<Hand> getHandStrengthComparator(Comparator<Card> cardComparator) {
+    private static Comparator<Hand> getHandStrengthComparator(Comparator<Character> cardComparator) {
         return (o1, o2) -> IntStream.range(0, 5)
                 .mapToObj(i -> cardComparator.compare(o1.cards.get(i), o2.cards.get(i)))
                 .filter(i -> i != 0)
@@ -91,11 +110,11 @@ public class Day7 {
                 .orElse(0);
     }
 
-    private record Hand(List<Card> cards, long bid) {
+    private record Hand(List<Character> cards, long bid) {
 
-        public int getHandType() {
+        public HandType getHandType() {
             List<Integer> cardAmounts = this.cards.stream()
-                    .collect(Collectors.groupingBy(card -> Card.STRENGTH_ORDER.indexOf(card.type), Collectors.counting()))
+                    .collect(Collectors.groupingBy(CARD_RANKING_ORDER::indexOf, Collectors.counting()))
                     .values().stream()
                     .sorted(Comparator.reverseOrder())
                     .map(Long::intValue)
@@ -103,16 +122,16 @@ public class Day7 {
             return getHandType(cardAmounts);
         }
 
-        public int getHandTypeWithJoker() {
-            int nrOfJokers = (int) this.cards.stream().filter(t -> t.type == 'J').count();
+        public HandType getHandTypeWithJoker() {
+            int nrOfJokers = (int) this.cards.stream().filter(t -> t == 'J').count();
             AtomicBoolean jokersAdded = new AtomicBoolean(false);
             List<Integer> cardAmounts;
             if (nrOfJokers == 5) {
                 cardAmounts = List.of(5);
             } else {
                 cardAmounts = this.cards.stream()
-                        .filter(t -> t.type != 'J')
-                        .collect(Collectors.groupingBy(card -> Card.STRENGTH_ORDER.indexOf(card.type), Collectors.counting()))
+                        .filter(t -> t != 'J')
+                        .collect(Collectors.groupingBy(CARD_RANKING_ORDER::indexOf, Collectors.counting()))
                         .values().stream()
                         .sorted(Comparator.reverseOrder())
                         .map(t -> {
@@ -129,27 +148,10 @@ public class Day7 {
             return getHandType(cardAmounts);
         }
 
-        private static int getHandType(List<Integer> cardAmounts) {
-            return switch (cardAmounts.get(0)) {
-                case 5 -> 7;
-                case 4 -> 6;
-                case 3 -> cardAmounts.get(1) == 2L ? 5 : 4;
-                case 2 -> cardAmounts.get(1) == 2L ? 3 : 2;
-                default -> 1;
-            };
-        }
-    }
-
-    private record Card(char type) {
-        private static final List<Character> STRENGTH_ORDER = List.of('2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A');
-        private static final List<Character> STRENGTH_WITH_JOKER_ORDER = List.of('J', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A');
-
-        public int getStrength() {
-            return STRENGTH_ORDER.indexOf(type);
-        }
-
-        public int getStrengthWithJoker() {
-            return STRENGTH_WITH_JOKER_ORDER.indexOf(type);
+        private static HandType getHandType(List<Integer> cardAmounts) {
+            return Arrays.stream(HandType.values())
+                    .filter(t -> t.amounts.equals(cardAmounts))
+                    .findFirst().orElseThrow();
         }
     }
 }
