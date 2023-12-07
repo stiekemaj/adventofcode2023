@@ -72,9 +72,6 @@ public class Day6 {
         return List.of(new Record(Long.parseLong(time), Long.parseLong(distance)));
     }
 
-    /**
-     *   d = -x^2 + tx
-     */
     public static IntersectionResult calculateIntersectionsNewRecord(Record record) {
         return quadraticFormula(1L, -record.time, record.distance + 1);
     }
