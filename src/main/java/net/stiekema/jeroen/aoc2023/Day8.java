@@ -22,26 +22,19 @@ public class Day8 {
     }
 
     private static long calculatePart1(String file) throws URISyntaxException, IOException {
-        long startTime = System.currentTimeMillis();
         Struct struct = buildStruct(file);
-        long result = struct.calculateSteps(t -> t.equals("AAA"), t -> t.equals("ZZZ"));
-        System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
-        return result;
+        return struct.calculateSteps(t -> t.equals("AAA"), t -> t.equals("ZZZ"));
     }
 
     private static long calculatePart2(String file) throws URISyntaxException, IOException {
-        long startTime = System.currentTimeMillis();
         Struct struct = buildStruct(file);
-        long result = struct.calculateSteps(t -> t.endsWith("A"), t1 -> t1.endsWith("Z"));
-        System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
-        return result;
+        return struct.calculateSteps(t -> t.endsWith("A"), t1 -> t1.endsWith("Z"));
     }
 
     private static Struct buildStruct(String fileName) throws URISyntaxException, IOException {
-        List<Instruction> instructions = getLines(fileName).findFirst()
+        List<Character> instructions = getLines(fileName).findFirst()
                 .map(t -> t.chars()
                         .mapToObj(c -> (char) c)
-                        .map(Instruction::of)
                         .toList()
                 ).orElseThrow();
 
@@ -60,50 +53,20 @@ public class Day8 {
     }
 
 
-    private static long lcm(long a, long b) {
-        return (a * b) / gcd(a, b);
-    }
-
-    private static long gcd(long a, long b) {
-        while (a != b) {
-            if (a > b) {
-                a = a - b;
-            } else {
-                b = b - a;
-            }
-        }
-        return a;
-    }
-
-    private enum Instruction {
-        LEFT, RIGHT;
-
-        private static Instruction of(char c) {
-            if (c == 'L') return LEFT;
-            if (c == 'R') return RIGHT;
-            throw new IllegalArgumentException("" + c);
-        }
-
-        public String nextFrom(Tuple<String> tuple) {
-            if (this == LEFT) return tuple.left();
-            else return tuple.right();
-        }
-    }
-
-    private record Struct(List<Instruction> instructions, Map<String, Tuple<String>> network) {
+    private record Struct(List<Character> instructions, Map<String, Tuple<String>> network) {
         private long calculateSteps(Predicate<String> startNodePredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
                     .filter(startNodePredicate)
                     .map(t -> calculateSteps(t, finishPredicate))
-                    .reduce(Day8::lcm).orElseThrow();
+                    .reduce(Struct::lcm).orElseThrow();
         }
 
         private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
             long stepNr = 0;
             Tuple<String> currentNode = network.get(startingPoint);
             while(true) {
-                Instruction nextInstruction = instructions.get((int)(stepNr++ % instructions.size()));
-                String nextStep = nextInstruction.nextFrom(currentNode);
+                Character nextInstruction = instructions.get((int)(stepNr++ % instructions.size()));
+                String nextStep = nextInstruction == 'L' ? currentNode.left : currentNode.right;
                 if (finishPredicate.test(nextStep)) {
                     return stepNr;
                 }
@@ -111,6 +74,20 @@ public class Day8 {
             }
         }
 
+        private static long lcm(long a, long b) {
+            return (a * b) / gcd(a, b);
+        }
+
+        private static long gcd(long a, long b) {
+            while (a != b) {
+                if (a > b) {
+                    a = a - b;
+                } else {
+                    b = b - a;
+                }
+            }
+            return a;
+        }
     }
 
     private record Tuple<T>(T left, T right) {}
