@@ -10,12 +10,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BinaryOperator;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class Day8 {
-    private static final boolean DEBUG = true;
-
     public static void main(String[] args) throws URISyntaxException, IOException {
         System.out.println("Part 1 test 1: " + calculatePart1("/day8-test.txt"));
         System.out.println("Part 1 test 2: " + calculatePart1("/day8-test2.txt"));
@@ -25,23 +24,28 @@ public class Day8 {
     }
 
     private static long calculatePart1(String file) throws URISyntaxException, IOException {
+        long startTime = System.currentTimeMillis();
         Struct struct = parseFile(file);
-        return calculate(List.of("AAA"), struct, t -> t.equals("ZZZ"));
+        long result = calculate(List.of("AAA"), struct, t -> t.equals("ZZZ"));
+        System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
+        return result;
     }
 
     private static long calculatePart2(String file) throws URISyntaxException, IOException {
+        long startTime = System.currentTimeMillis();
         Struct struct = parseFile(file);
         List<String> startingPoints = struct.network.keySet().stream()
                 .filter(t -> t.endsWith("A"))
                 .toList();
-        return calculate(startingPoints, struct, t -> t.endsWith("Z"));
+        long result = calculate(startingPoints, struct, t -> t.endsWith("Z"));
+        System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
+        return result;
     }
 
     private static long calculate(List<String> startingPoints, Struct struct, Predicate<String> finalNodeMatcher) {
-        List<Long> steps = startingPoints.stream()
+        return startingPoints.stream()
                 .map(t -> calculate(t, struct, finalNodeMatcher))
-                .toList();
-        return lcm(steps);
+                .reduce(Day8::lcm).orElseThrow();
     }
 
     private static long calculate(String startingPoint, Struct struct, Predicate<String> finalNodeMatcher) {
@@ -55,20 +59,6 @@ public class Day8 {
             }
             currentNode = struct.network.get(nextStep);
         }
-    }
-
-    private static long lcm(List<Long> values) {
-        if (values.size() == 1) {
-            return values.get(0);
-        }
-        if (values.size() == 2) {
-            return lcm(values.get(0), values.get(1));
-        }
-
-        List<Long> newValues = new ArrayList<>();
-        newValues.addAll(values.subList(2, values.size()));
-        newValues.add(lcm(values.get(0), values.get(1)));
-        return lcm(newValues);
     }
 
     private static long lcm(long a, long b) {
