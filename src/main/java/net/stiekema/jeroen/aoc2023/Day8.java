@@ -32,19 +32,19 @@ public class Day8 {
     }
 
     private static Struct buildStruct(String fileName) throws URISyntaxException, IOException {
-        List<Character> directions = getLines(fileName).findFirst()
+        List<Character> instructions = getLines(fileName).findFirst()
                 .map(line -> line.chars()
                         .mapToObj(c -> (char) c)
                         .toList()
                 ).orElseThrow();
 
-        Map<String, Instruction> network = new HashMap<>();
+        Map<String, Vertex> network = new HashMap<>();
         getLines(fileName)
                 .skip(2)
                 .map(line -> line.split("[\\s=(),]+"))
-                .forEach(t -> network.put(t[0], new Instruction(t[1], t[2])));
+                .forEach(t -> network.put(t[0], new Vertex(t[1], t[2])));
 
-        return new Struct(directions, network);
+        return new Struct(instructions, network);
     }
 
     private static Stream<String> getLines(String fileName) throws URISyntaxException, IOException {
@@ -52,7 +52,7 @@ public class Day8 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
-    private record Struct(List<Character> directions, Map<String, Instruction> network) {
+    private record Struct(List<Character> instructions, Map<String, Vertex> network) {
         private long calculateNrOfSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
                     .filter(startPredicate)
@@ -62,19 +62,22 @@ public class Day8 {
 
         private long calculateNrOfSteps(String startNode, Predicate<String> finishPredicate) {
             long stepNr = 0;
-            Instruction currentInstruction = network.get(startNode);
+            Vertex currentVertex = network.get(startNode);
             while (true) {
-                Character nextDirection = directions.get((int) (stepNr++ % directions.size()));
-                String nextNode = nextDirection == 'L' ? currentInstruction.left : currentInstruction.right;
+                Character nextInstruction = instructions.get((int) (stepNr++ % instructions.size()));
+                String nextNode = currentVertex.next(nextInstruction);
                 if (finishPredicate.test(nextNode)) {
                     return stepNr;
                 }
-                currentInstruction = network.get(nextNode);
+                currentVertex = network.get(nextNode);
             }
         }
     }
 
-    private record Instruction(String left, String right) {
+    private record Vertex(String left, String right) {
+        String next(char instruction) {
+            return instruction == 'L' ? left : right;
+        }
     }
 
     private static final class Math {
