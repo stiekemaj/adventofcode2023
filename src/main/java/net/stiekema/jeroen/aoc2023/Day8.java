@@ -23,28 +23,28 @@ public class Day8 {
 
     private static long calculatePart1(String file) throws URISyntaxException, IOException {
         Struct struct = buildStruct(file);
-        return struct.calculateSteps(t -> t.equals("AAA"), t -> t.equals("ZZZ"));
+        return struct.calculateNrOfSteps("AAA"::equals, "ZZZ"::equals);
     }
 
     private static long calculatePart2(String file) throws URISyntaxException, IOException {
         Struct struct = buildStruct(file);
-        return struct.calculateSteps(t -> t.endsWith("A"), t1 -> t1.endsWith("Z"));
+        return struct.calculateNrOfSteps(node -> node.endsWith("A"), node -> node.endsWith("Z"));
     }
 
     private static Struct buildStruct(String fileName) throws URISyntaxException, IOException {
-        List<Character> instructions = getLines(fileName).findFirst()
-                .map(t -> t.chars()
+        List<Character> directions = getLines(fileName).findFirst()
+                .map(line -> line.chars()
                         .mapToObj(c -> (char) c)
                         .toList()
                 ).orElseThrow();
 
-        Map<String, Tuple> network = new HashMap<>();
+        Map<String, Instruction> network = new HashMap<>();
         getLines(fileName)
                 .skip(2)
-                .map(t -> t.split("[\\s=(),]+"))
-                .forEach(t -> network.put(t[0], new Tuple(t[1], t[2])));
+                .map(line -> line.split("[\\s=(),]+"))
+                .forEach(t -> network.put(t[0], new Instruction(t[1], t[2])));
 
-        return new Struct(instructions, network);
+        return new Struct(directions, network);
     }
 
     private static Stream<String> getLines(String fileName) throws URISyntaxException, IOException {
@@ -52,29 +52,29 @@ public class Day8 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
-    private record Struct(List<Character> instructions, Map<String, Tuple> network) {
-        private long calculateSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
+    private record Struct(List<Character> directions, Map<String, Instruction> network) {
+        private long calculateNrOfSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
                     .filter(startPredicate)
-                    .map(t -> calculateSteps(t, finishPredicate))
+                    .map(startNode -> calculateNrOfSteps(startNode, finishPredicate))
                     .reduce(Math::lcm).orElseThrow();
         }
 
-        private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
+        private long calculateNrOfSteps(String startNode, Predicate<String> finishPredicate) {
             long stepNr = 0;
-            Tuple currentNode = network.get(startingPoint);
+            Instruction currentInstruction = network.get(startNode);
             while (true) {
-                Character nextInstruction = instructions.get((int) (stepNr++ % instructions.size()));
-                String nextStep = nextInstruction == 'L' ? currentNode.left : currentNode.right;
-                if (finishPredicate.test(nextStep)) {
+                Character nextDirection = directions.get((int) (stepNr++ % directions.size()));
+                String nextNode = nextDirection == 'L' ? currentInstruction.left : currentInstruction.right;
+                if (finishPredicate.test(nextNode)) {
                     return stepNr;
                 }
-                currentNode = network.get(nextStep);
+                currentInstruction = network.get(nextNode);
             }
         }
     }
 
-    private record Tuple(String left, String right) {
+    private record Instruction(String left, String right) {
     }
 
     private static final class Math {
