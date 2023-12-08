@@ -6,11 +6,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BinaryOperator;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -25,58 +23,21 @@ public class Day8 {
 
     private static long calculatePart1(String file) throws URISyntaxException, IOException {
         long startTime = System.currentTimeMillis();
-        Struct struct = parseFile(file);
-        long result = calculate(List.of("AAA"), struct, t -> t.equals("ZZZ"));
+        Struct struct = buildStruct(file);
+        long result = struct.calculateSteps(t -> t.equals("AAA"), t -> t.equals("ZZZ"));
         System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
         return result;
     }
 
     private static long calculatePart2(String file) throws URISyntaxException, IOException {
         long startTime = System.currentTimeMillis();
-        Struct struct = parseFile(file);
-        List<String> startingPoints = struct.network.keySet().stream()
-                .filter(t -> t.endsWith("A"))
-                .toList();
-        long result = calculate(startingPoints, struct, t -> t.endsWith("Z"));
+        Struct struct = buildStruct(file);
+        long result = struct.calculateSteps(t -> t.endsWith("A"), t1 -> t1.endsWith("Z"));
         System.out.println("time spent: " + (System.currentTimeMillis() - startTime) + " ms");
         return result;
     }
 
-    private static long calculate(List<String> startingPoints, Struct struct, Predicate<String> finalNodeMatcher) {
-        return startingPoints.stream()
-                .map(t -> calculate(t, struct, finalNodeMatcher))
-                .reduce(Day8::lcm).orElseThrow();
-    }
-
-    private static long calculate(String startingPoint, Struct struct, Predicate<String> finalNodeMatcher) {
-        long stepNr = 0;
-        Tuple<String> currentNode = struct.network.get(startingPoint);
-        while(true) {
-            Instruction nextInstruction = struct.instructions.get((int)(stepNr++ % struct.instructions.size()));
-            String nextStep = nextInstruction.nextFrom(currentNode);
-            if (finalNodeMatcher.test(nextStep)) {
-                return stepNr;
-            }
-            currentNode = struct.network.get(nextStep);
-        }
-    }
-
-    private static long lcm(long a, long b) {
-        return (a * b) / gcd(a, b);
-    }
-
-    private static long gcd(long a, long b) {
-        while (a != b) {
-            if (a > b) {
-                a = a - b;
-            } else {
-                b = b - a;
-            }
-        }
-        return a;
-    }
-
-    private static Struct parseFile(String fileName) throws URISyntaxException, IOException {
+    private static Struct buildStruct(String fileName) throws URISyntaxException, IOException {
         List<Instruction> instructions = getLines(fileName).findFirst()
                 .map(t -> t.chars()
                         .mapToObj(c -> (char) c)
@@ -98,6 +59,22 @@ public class Day8 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
+
+    private static long lcm(long a, long b) {
+        return (a * b) / gcd(a, b);
+    }
+
+    private static long gcd(long a, long b) {
+        while (a != b) {
+            if (a > b) {
+                a = a - b;
+            } else {
+                b = b - a;
+            }
+        }
+        return a;
+    }
+
     private enum Instruction {
         LEFT, RIGHT;
 
@@ -113,7 +90,28 @@ public class Day8 {
         }
     }
 
-    private record Struct(List<Instruction> instructions, Map<String, Tuple<String>> network) {}
+    private record Struct(List<Instruction> instructions, Map<String, Tuple<String>> network) {
+        private long calculateSteps(Predicate<String> startNodePredicate, Predicate<String> finishPredicate) {
+            return network.keySet().stream()
+                    .filter(startNodePredicate)
+                    .map(t -> calculateSteps(t, finishPredicate))
+                    .reduce(Day8::lcm).orElseThrow();
+        }
+
+        private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
+            long stepNr = 0;
+            Tuple<String> currentNode = network.get(startingPoint);
+            while(true) {
+                Instruction nextInstruction = instructions.get((int)(stepNr++ % instructions.size()));
+                String nextStep = nextInstruction.nextFrom(currentNode);
+                if (finishPredicate.test(nextStep)) {
+                    return stepNr;
+                }
+                currentNode = network.get(nextStep);
+            }
+        }
+
+    }
 
     private record Tuple<T>(T left, T right) {}
 }
