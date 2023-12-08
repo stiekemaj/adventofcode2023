@@ -7,23 +7,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Day8 {
     private static final boolean DEBUG = true;
 
     public static void main(String[] args) throws URISyntaxException, IOException {
-//        System.out.println("Part 1 test 1: " + calculatePart1("/day8-test.txt"));
-//        System.out.println("Part 1 test 2: " + calculatePart1("/day8-test2.txt"));
-//        System.out.println("Part 1: " + calculatePart1("/day8.txt"));
-//        System.out.println("Part 2 test: " + calculatePart2("/day8-test3.txt"));
+        System.out.println("Part 1 test 1: " + calculatePart1("/day8-test.txt"));
+        System.out.println("Part 1 test 2: " + calculatePart1("/day8-test2.txt"));
+        System.out.println("Part 1: " + calculatePart1("/day8.txt"));
+        System.out.println("Part 2 test: " + calculatePart2("/day8-test3.txt"));
         System.out.println("Part 2: " + calculatePart2("/day8.txt"));
     }
 
@@ -41,41 +38,29 @@ public class Day8 {
     }
 
     private static long calculate(List<String> startingPoints, Struct struct, Predicate<String> finalNodeMatcher) {
-        long stepNr = 0;
-        Tuple<String>[] currentNodes = startingPoints.stream()
-                .map(struct.network::get)
-                .toList()
-                .toArray((Tuple<String>[]) new Tuple[0]);
-
-        while (true) {
-            Instruction nextInstruction = struct.instructions.get((int)(stepNr++ % struct.instructions.size()));
-            List<String> nextStep = Arrays.stream(currentNodes)
-                    .map(nextInstruction::nextFrom)
-                    .toList();
-
-            if (DEBUG) {
-                long finalStepNr = stepNr;
-                IntStream.range(1, 2)
-                        .forEach(i -> {
-                            if (finalNodeMatcher.test(nextStep.get(i))) {
-                                System.out.println("step on position " + i + ": " + nextStep.get(i) + ": stepNr: " + finalStepNr);
-                            }
-                        });
-            }
-            if (nextStep.stream().allMatch(finalNodeMatcher)) {
-                break;
-            }
-            if (DEBUG) {
-                if (stepNr > 100000) break;
-            }
-            IntStream.range(0, nextStep.size()).forEach(i -> {
-                currentNodes[i] = struct.network.get(nextStep.get(i));
-            });
-        }
-        return stepNr;
+        List<Long> steps = startingPoints.stream()
+                .map(t -> calculate(t, struct, finalNodeMatcher))
+                .toList();
+        return lcm(steps);
     }
 
-    private long lcm(List<Long> values) {
+    private static long calculate(String startingPoint, Struct struct, Predicate<String> finalNodeMatcher) {
+        long stepNr = 0;
+        Tuple<String> currentNode = struct.network.get(startingPoint);
+        while(true) {
+            Instruction nextInstruction = struct.instructions.get((int)(stepNr++ % struct.instructions.size()));
+            String nextStep = nextInstruction.nextFrom(currentNode);
+            if (finalNodeMatcher.test(nextStep)) {
+                return stepNr;
+            }
+            currentNode = struct.network.get(nextStep);
+        }
+    }
+
+    private static long lcm(List<Long> values) {
+        if (values.size() == 1) {
+            return values.get(0);
+        }
         if (values.size() == 2) {
             return lcm(values.get(0), values.get(1));
         }
@@ -86,11 +71,11 @@ public class Day8 {
         return lcm(newValues);
     }
 
-    private long lcm(long a, long b) {
+    private static long lcm(long a, long b) {
         return (a * b) / gcd(a, b);
     }
 
-    private long gcd(long a, long b) {
+    private static long gcd(long a, long b) {
         while (a != b) {
             if (a > b) {
                 a = a - b;
