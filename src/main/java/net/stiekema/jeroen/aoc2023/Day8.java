@@ -38,11 +38,11 @@ public class Day8 {
                         .toList()
                 ).orElseThrow();
 
-        Map<String, Tuple<String>> network = new HashMap<>();
+        Map<String, Tuple> network = new HashMap<>();
         getLines(fileName)
                 .skip(2)
                 .map(t -> t.split("[\\s=(),]+"))
-                .forEach(t -> network.put(t[0], new Tuple<>(t[1], t[2])));
+                .forEach(t -> network.put(t[0], new Tuple(t[1], t[2])));
 
         return new Struct(instructions, network);
     }
@@ -52,7 +52,7 @@ public class Day8 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
-    private record Struct(List<Character> instructions, Map<String, Tuple<String>> network) {
+    private record Struct(List<Character> instructions, Map<String, Tuple> network) {
         private long calculateSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
                     .filter(startPredicate)
@@ -62,7 +62,7 @@ public class Day8 {
 
         private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
             long stepNr = 0;
-            Tuple<String> currentNode = network.get(startingPoint);
+            Tuple currentNode = network.get(startingPoint);
             while (true) {
                 Character nextInstruction = instructions.get((int) (stepNr++ % instructions.size()));
                 String nextStep = nextInstruction == 'L' ? currentNode.left : currentNode.right;
@@ -74,7 +74,7 @@ public class Day8 {
         }
     }
 
-    private record Tuple<T>(T left, T right) {
+    private record Tuple(String left, String right) {
     }
 
     private static final class Math {
