@@ -52,7 +52,6 @@ public class Day8 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
-
     private record Struct(List<Character> instructions, Map<String, Tuple<String>> network) {
         private long calculateSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
@@ -64,8 +63,8 @@ public class Day8 {
         private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
             long stepNr = 0;
             Tuple<String> currentNode = network.get(startingPoint);
-            while(true) {
-                Character nextInstruction = instructions.get((int)(stepNr++ % instructions.size()));
+            while (true) {
+                Character nextInstruction = instructions.get((int) (stepNr++ % instructions.size()));
                 String nextStep = nextInstruction == 'L' ? currentNode.left : currentNode.right;
                 if (finishPredicate.test(nextStep)) {
                     return stepNr;
@@ -75,7 +74,8 @@ public class Day8 {
         }
     }
 
-    private record Tuple<T>(T left, T right) {}
+    private record Tuple<T>(T left, T right) {
+    }
 
     private static final class Math {
         private static long lcm(long a, long b) {
