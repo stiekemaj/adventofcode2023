@@ -54,11 +54,11 @@ public class Day8 {
 
 
     private record Struct(List<Character> instructions, Map<String, Tuple<String>> network) {
-        private long calculateSteps(Predicate<String> startNodePredicate, Predicate<String> finishPredicate) {
+        private long calculateSteps(Predicate<String> startPredicate, Predicate<String> finishPredicate) {
             return network.keySet().stream()
-                    .filter(startNodePredicate)
+                    .filter(startPredicate)
                     .map(t -> calculateSteps(t, finishPredicate))
-                    .reduce(Struct::lcm).orElseThrow();
+                    .reduce(Math::lcm).orElseThrow();
         }
 
         private long calculateSteps(String startingPoint, Predicate<String> finishPredicate) {
@@ -73,7 +73,11 @@ public class Day8 {
                 currentNode = network.get(nextStep);
             }
         }
+    }
 
+    private record Tuple<T>(T left, T right) {}
+
+    private static final class Math {
         private static long lcm(long a, long b) {
             return (a * b) / gcd(a, b);
         }
@@ -89,6 +93,4 @@ public class Day8 {
             return a;
         }
     }
-
-    private record Tuple<T>(T left, T right) {}
 }
