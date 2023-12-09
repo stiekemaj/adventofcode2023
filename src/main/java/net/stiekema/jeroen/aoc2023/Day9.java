@@ -19,6 +19,8 @@ public class Day9 {
     public static void main(String[] args) throws URISyntaxException, IOException {
         System.out.println("Part 1 test: " + calculatePart1("/day9-test.txt"));
         System.out.println("Part 1: " + calculatePart1("/day9.txt"));
+        System.out.println("Part 2 test: " + calculatePart2("/day9-test.txt"));
+        System.out.println("Part 2: " + calculatePart2("/day9.txt"));
     }
 
     public static long calculatePart1(String file) throws URISyntaxException, IOException {
@@ -29,6 +31,17 @@ public class Day9 {
                         .toList()
                 )
                 .mapToLong(Day9::extrapolateNextValue)
+                .sum();
+    }
+
+    public static long calculatePart2(String file) throws URISyntaxException, IOException {
+        return getLines(file)
+                .map(t -> t.split("\\s+"))
+                .map(t -> Arrays.asList(t).stream()
+                        .map(Long::valueOf)
+                        .toList()
+                )
+                .mapToLong(Day9::extrapolatePreviousValue)
                 .sum();
     }
 
@@ -43,6 +56,22 @@ public class Day9 {
         return finalValues.stream()
                 .mapToLong(t -> t)
                 .sum();
+    }
+
+    private static long extrapolatePreviousValue(List<Long> values) {
+        List<Long> previousDifferences = new LinkedList<>(values);
+        List<Long> startingValues = new ArrayList<>();
+        while (!previousDifferences.isEmpty() && !previousDifferences.stream().allMatch(Long.valueOf(0L)::equals)) {
+            startingValues.add(previousDifferences.get(0));
+            previousDifferences = calculateDifferences(previousDifferences);
+        }
+
+        Long result = 0L;
+
+        for (int i = startingValues.size() - 1; i >= 0; i--) {
+            result = startingValues.get(i) - result;
+        }
+        return result;
     }
 
     private static List<Long> calculateDifferences(List<Long> values) {
