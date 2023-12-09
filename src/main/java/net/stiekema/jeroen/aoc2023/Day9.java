@@ -8,8 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -26,62 +27,41 @@ public class Day9 {
     public static long calculatePart1(String file) throws URISyntaxException, IOException {
         return getLines(file)
                 .map(t -> t.split("\\s+"))
-                .map(t -> Arrays.asList(t).stream()
-                        .map(Long::valueOf)
-                        .toList()
-                )
-                .mapToLong(Day9::extrapolateNextValue)
+                .map(Arrays::asList)
+                .map(t -> t.stream().mapToLong(Long::parseLong).boxed().collect(Collectors.toList()))
+                .mapToLong(Day9::extrapolate)
                 .sum();
     }
 
     public static long calculatePart2(String file) throws URISyntaxException, IOException {
         return getLines(file)
                 .map(t -> t.split("\\s+"))
-                .map(t -> Arrays.asList(t).stream()
-                        .map(Long::valueOf)
+                .map(Arrays::asList)
+                .map(Utils::reverse)
+                .map(t -> t.stream().mapToLong(Long::parseLong).boxed().collect(Collectors.toList()))
+                .mapToLong(Day9::extrapolate)
+                .sum();
+    }
+
+    private static long extrapolate(List<Long> input) {
+        return extrapolate(input, new Stack<>());
+    }
+
+    private static long extrapolate(List<Long> input, Stack<Long> stack) {
+        if (input.stream().allMatch(Long.valueOf(0L)::equals)) {
+            long result = 0;
+            while (!stack.isEmpty()) {
+                result = stack.pop() + result;
+            }
+            return result;
+        }
+
+        stack.push(input.get(input.size() - 1));
+        return extrapolate(
+                IntStream.range(1, input.size())
+                        .mapToObj(i -> input.get(i) - input.get(i - 1))
                         .toList()
-                )
-                .mapToLong(Day9::extrapolatePreviousValue)
-                .sum();
-    }
-
-    private static long extrapolateNextValue(List<Long> values) {
-        List<Long> previousDifferences = new LinkedList<>(values);
-        List<Long> finalValues = new ArrayList<>();
-        while (!previousDifferences.isEmpty() && !previousDifferences.stream().allMatch(Long.valueOf(0L)::equals)) {
-            finalValues.add(previousDifferences.get(previousDifferences.size() - 1));
-            previousDifferences = calculateDifferences(previousDifferences);
-        }
-
-        return finalValues.stream()
-                .mapToLong(t -> t)
-                .sum();
-    }
-
-    private static long extrapolatePreviousValue(List<Long> values) {
-        List<Long> previousDifferences = new LinkedList<>(values);
-        List<Long> startingValues = new ArrayList<>();
-        while (!previousDifferences.isEmpty() && !previousDifferences.stream().allMatch(Long.valueOf(0L)::equals)) {
-            startingValues.add(previousDifferences.get(0));
-            previousDifferences = calculateDifferences(previousDifferences);
-        }
-
-        Long result = 0L;
-
-        for (int i = startingValues.size() - 1; i >= 0; i--) {
-            result = startingValues.get(i) - result;
-        }
-        return result;
-    }
-
-    private static List<Long> calculateDifferences(List<Long> values) {
-        if (values.size() < 2) {
-            return values;
-        }
-
-        return IntStream.range(1, values.size())
-                .mapToObj(i -> values.get(i) - values.get(i-1))
-                .collect(Collectors.toList());
+                , stack);
     }
 
     private static Stream<String> getLines(String fileName) throws URISyntaxException, IOException {
@@ -89,4 +69,11 @@ public class Day9 {
         return Files.lines(Paths.get(resource.toURI()), StandardCharsets.UTF_8);
     }
 
+    private static class Utils {
+        public static <T> List<T> reverse(List<T> list) {
+            ArrayList<T> result = new ArrayList<>(list);
+            Collections.reverse(result);
+            return result;
+        }
+    }
 }
