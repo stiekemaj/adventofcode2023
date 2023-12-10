@@ -9,10 +9,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Day10 {
@@ -24,25 +28,22 @@ public class Day10 {
         System.out.println("Part 2: " + calculatePart2("/day10.txt"));
     }
 
-    private static long calculatePart2(String file) throws URISyntaxException, IOException {
-        Maze.Builder builder = new Maze.Builder();
-        getLines(file).forEach(builder::addLine);
-        Maze maze = builder.build();
-        System.out.println(maze.toString());
-        return 0L;
-    }
-
     public static long calculatePart1(String file) throws URISyntaxException, IOException {
         Maze.Builder builder = new Maze.Builder();
         getLines(file).forEach(builder::addLine);
         Maze maze = builder.build();
-        System.out.printf(maze.toString());
-        Context context = new Context();
-        Node currentNode = maze.getStartingPoint();
-        do {
-            currentNode = currentNode.next(context);
-        } while (!currentNode.isStartingPoint());
-        return context.stepsToFarthestPosition();
+//        System.out.printf(maze.toString());
+        List<Node> routeNodes = maze.findRouteNodes();
+        return (long) Math.ceil((double) (routeNodes.size() / 2L));
+    }
+
+    private static long calculatePart2(String file) throws URISyntaxException, IOException {
+        Maze.Builder builder = new Maze.Builder();
+        getLines(file).forEach(builder::addLine);
+        Maze maze = builder.build();
+//        System.out.println(maze);
+        EnclosedTilesCalculator calculator = new EnclosedTilesCalculator(maze);
+        return calculator.calculateNrOfEnclosedTiles();
     }
 
 
@@ -53,11 +54,14 @@ public class Day10 {
 
     private static class Maze {
 
-        private final Node[][] representation;
+        private long width, height;
+        private Map<Coordinate, Node> nodes;
         private final Node startingPoint;
 
-        private Maze(Node[][] representation, Node startingPoint) {
-            this.representation = representation;
+        private Maze(long width, long height, Map<Coordinate, Node> nodes, Node startingPoint) {
+            this.width = width;
+            this.height = height;
+            this.nodes = nodes;
             this.startingPoint = startingPoint;
         }
 
@@ -65,11 +69,21 @@ public class Day10 {
             return startingPoint;
         }
 
+        public List<Node> findRouteNodes() {
+            List<Node> result = new ArrayList<>();
+            Node currentNode = getStartingPoint();
+            do {
+                result.add(currentNode);
+                currentNode = currentNode.next;
+            } while (!currentNode.isStartingPoint());
+            return result;
+        }
+
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            for (int y = 0; y < representation.length; y++) {
-                for (int x = 0; x < representation[0].length; x++) {
-                    sb.append(representation[y][x].nodeType.ascii);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    sb.append(nodes.get(new Coordinate(x, y)).nodeType.ascii);
                 }
                 sb.append('\n');
             }
@@ -84,59 +98,193 @@ public class Day10 {
             }
 
             private Maze build() {
-                int lineLength = lines.isEmpty() ? 0 : lines.get(0).length();
-                Node[][] representation = new Node[lines.size()][lineLength];
+                int width = lines.isEmpty() ? 0 : lines.get(0).length();
+                int height = lines.size();
+                Map<Coordinate, Node> nodes = new HashMap<>();
                 Node startingPoint = null;
-                for (int y = 0; y < lines.size(); y++) {
-                    for (int x = 0; x < lineLength; x++) {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
                         NodeType nodeType = NodeType.of(lines.get(y).charAt(x));
-                        Node node = new Node(new Coordinate(x, y), nodeType);
-                        representation[y][x] = node;
+                        Coordinate coordinate = new Coordinate(x, y);
+                        Node node = new Node(coordinate, nodeType);
+                        nodes.put(coordinate, node);
                         if (node.isStartingPoint()) {
                             startingPoint = node;
                         }
-                        nodeType.findPossibleNeighbours(new Coordinate(x, y))
-                                .entrySet()
-                                .stream()
-                                .filter(t -> withinBoundaries(t.getKey(), representation))
-                                .forEach(t -> {
-                                    Node neighbourNode = representation[t.getKey().y][t.getKey().x];
-                                    if (neighbourNode != null && t.getValue().contains(neighbourNode.nodeType)) {
-                                        node.connect(neighbourNode);
-                                    }
-                                });
-
                     }
                 }
 
+                Node previous = null;
+                Node current = startingPoint;
 
-                return new Maze(representation, startingPoint);
+                do {
+                    Node finalPrevious = previous;
+                    Node next = current.nodeType.findPossibleNeighbours(current.coordinate)
+                            .entrySet()
+                            .stream().filter(t -> withinBoundaries(t.getKey(), width, height))
+                            .filter(entry -> {
+                                Node neighbourNode = nodes.get(entry.getKey());
+                                return (neighbourNode != null && entry.getValue().contains(neighbourNode.nodeType));
+                            })
+                            .map(Map.Entry::getKey)
+                            .map(nodes::get)
+                            .filter( t -> !t.equals(finalPrevious))
+                            .filter(t -> t.previous == null)
+                            .findFirst().orElseThrow();
+                    current.next = next;
+                    next.previous = current;
+                    previous = current;
+                    current = next;
+                } while (!current.isStartingPoint());
+
+                return new Maze(width, height, nodes, startingPoint);
             }
 
-            private static boolean withinBoundaries(Coordinate c, Node[][] representation) {
-                return c.x() >= 0 && c.x() < representation[0].length && c.y >= 0 && c.y < representation.length;
+            private static boolean withinBoundaries(Coordinate c, int width, int height) {
+                return c.x() >= 0 && c.x() < width && c.y >= 0 && c.y < height;
             }
         }
     }
 
+    private static class EnclosedTilesCalculator {
+        private final Maze maze;
+        private final Map<Coordinate, Node> routeNodes;
+        private final Map<Coordinate, Node> nonRouteNodes;
+
+        private EnclosedTilesCalculator(Maze maze) {
+            this.maze = maze;
+            List<Node> routeNodes = this.maze.findRouteNodes();
+            this.routeNodes = routeNodes.stream().collect(Collectors.toMap(k -> k.coordinate, v -> v));
+            this.nonRouteNodes = this.maze.nodes.values().stream()
+                    .filter(Predicate.not(routeNodes::contains))
+                    .collect(Collectors.toMap(k -> k.coordinate, v -> v));
+        }
+        
+        public long calculateNrOfEnclosedTiles() {
+            return this.nonRouteNodes.values()
+                    .stream()
+                    .filter(this::isEnclosed)
+                    .count();
+
+        }
+
+        private boolean isEnclosed(Node node) {
+            int crossingLinesLeft = findCrossingLinesLeft(node);
+            int crossingLinesRight = findCrossingLinesRight(node);
+            int crossingLinesTop = findCrossingLineTop(node);
+            int crossingLinesBottom = findCrossingLineBottom(node);
+
+            return crossingLinesLeft % 2 != 0
+                    && crossingLinesRight % 2 != 0
+                    && crossingLinesTop % 2 != 0
+                    && crossingLinesBottom % 2 != 0;
+        }
+
+        private int findCrossingLinesLeft(Node node) {
+            int result = 0;
+            Node previousNode = null;
+            for (int x = 0; x < node.coordinate.x; x++) {
+                Node foundNode = routeNodes.get(new Coordinate(x, node.coordinate.y));
+                if (foundNode != null && !connected(previousNode, foundNode) && crossesY(foundNode)) {
+                    result++;
+                }
+                previousNode = foundNode;
+            }
+            return result;
+        }
+
+        private int findCrossingLinesRight(Node node) {
+            int result = 0;
+            Node previousNode = null;
+            for (int x = node.coordinate.x + 1; x < maze.width; x++) {
+                Node foundNode = routeNodes.get(new Coordinate(x, node.coordinate.y));
+                if (foundNode != null && !connected(previousNode, foundNode) && crossesY(foundNode)) {
+                    result++;
+                }
+                previousNode = foundNode;
+            }
+            return result;
+        }
+
+        private int findCrossingLineTop(Node node) {
+            int result = 0;
+            Node previousNode = null;
+            for (int y = 0; y < node.coordinate.y; y++) {
+                Node foundNode = routeNodes.get(new Coordinate(node.coordinate.x, y));
+                if (foundNode != null && !connected(previousNode, foundNode) && crossesX(foundNode)) {
+                    result++;
+                }
+                previousNode = foundNode;
+            }
+            return result;
+        }
+
+        private int findCrossingLineBottom(Node node) {
+            int result = 0;
+            Node previousNode = null;
+            for (int y = node.coordinate.y + 1; y < maze.height; y++) {
+                Node foundNode = routeNodes.get(new Coordinate(node.coordinate.x, y));
+                if (foundNode != null && !connected(previousNode, foundNode) && crossesX(foundNode)) {
+                    result++;
+                }
+                previousNode = foundNode;
+            }
+            return result;
+        }
+
+        private boolean connected(Node nodeA, Node nodeB) {
+            if (nodeA == null || nodeB == null) {
+                return false;
+            }
+            return nodeA.next == nodeB || nodeA.previous == nodeB;
+        }
+
+        private boolean crossesY(Node node) {
+            int previousY;
+            Node currentNode = node;
+            do {
+                currentNode = currentNode.previous;
+                previousY = currentNode.coordinate.y;
+            } while (previousY == node.coordinate.y);
+
+            int nextY;
+            currentNode = node;
+            do {
+                currentNode = currentNode.next;
+                nextY = currentNode.coordinate.y;
+            } while (nextY == node.coordinate.y);
+
+            return previousY != nextY;
+        }
+
+        private boolean crossesX(Node node) {
+            int previousX;
+            Node currentNode = node;
+            do {
+                currentNode = currentNode.previous;
+                previousX = currentNode.coordinate.x;
+            } while (previousX == node.coordinate.x);
+
+            int nextX;
+            currentNode = node;
+            do {
+                currentNode = currentNode.next;
+                nextX = currentNode.coordinate.x;
+            } while (nextX == node.coordinate.x);
+
+            return previousX != nextX;
+        }
+    }
+
     private static class Node {
-        private final Set<Node> linkedNodes = new HashSet<>();
         private final Coordinate coordinate;
         private final NodeType nodeType;
+        private Node next;
+        private Node previous;
 
         public Node(Coordinate coordinate, NodeType nodeType) {
             this.coordinate = coordinate;
             this.nodeType = nodeType;
-        }
-
-        public Node next(Context context) {
-            context.nrOfSteps++;
-            Node next = linkedNodes.stream()
-                    .filter(t -> !t.equals(context.previous))
-                    .findFirst()
-                    .orElseThrow();
-            context.previous = this;
-            return next;
         }
 
         public boolean isStartingPoint() {
@@ -144,13 +292,27 @@ public class Day10 {
         }
 
         public void connect(Node node) {
-            this.linkedNodes.add(node);
-            node.linkedNodes.add(this);
+            if (this.next == null) {
+                this.next = node;
+                node.previous = this;
+            } else if (this.previous == null) {
+                this.previous = node;
+                node.next = this;
+            } else {
+                throw new IllegalStateException();
+            }
         }
     }
 
     private enum NodeType {
-        NS('|', '│'), EW('-', '─'), NE('L', '└'), NW('J', '┘'), SW('7', '┐'), SE('F', '┌'), GROUND('.', '.'), START('S', '┼');
+        NS('|', '│'),
+        EW('-', '─'),
+        NE('L', '└'),
+        NW('J', '┘'),
+        SW('7', '┐'),
+        SE('F', '┌'),
+        GROUND('.', '.'),
+        START('S', '┼');
 
         private final char c;
         private final char ascii;
@@ -226,15 +388,6 @@ public class Day10 {
 
         private static List<NodeType> compatibleTypesWest() {
             return List.of(EW, NE, SE, START);
-        }
-    }
-    private static class Context {
-
-        private Node previous;
-        private long nrOfSteps = 0;
-
-        public long stepsToFarthestPosition() {
-            return (long) Math.ceil(nrOfSteps / 2L);
         }
     }
 
